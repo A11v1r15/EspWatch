@@ -12,6 +12,7 @@
 #include <Adafruit_SH110X.h>
 #include <Adafruit_NeoPixel.h>
 #include "RussoOne18pt4b.h"
+#include "MoonPhases7x7.h"
 #include "secrets.h"
 #include "certs.h"
 
@@ -424,7 +425,7 @@ void displayZenithClock() {
   int sunX = ZENITH_CENTER_X + int(ZENITH_RADIUS * cos((sunAngle - 180) * DEG_TO_RAD));
   float sunHeight = sin((sunAngle - 180) * DEG_TO_RAD);
   int sunY = ZENITH_CENTER_Y + int(ZENITH_RADIUS * sunHeight);
-  setRGBLed(kToRGB(sunHeight * 6000 + 2000), sunHeight * 255); // Correct sun range is 2000K to 6500K
+  setRGBLed(kToRGB(sunHeight * 7000 + 2000), sunHeight * 255); // Correct sun range is 2000K to 6500K
   display.setCursor(sunX, sunY);
   display.print("*");
   display.drawRect(0, ZENITH_CENTER_Y, SCREEN_WIDTH, 9, SH110X_BLACK);
@@ -600,6 +601,39 @@ int kToRGB(int kTemp) {
     }
   }
 
-  int rgb = int(r) * 0x10000 + int(g) * 0x100 + int(b);
+  int rgb = r * 0x10000 + g * 0x100 + b;
   return rgb;
+}
+
+int moonPhase() {
+  double jd = 0;
+  double ed = 0;
+  int b = 0;
+  jd = julianDate(rawtime.year(), rawtime.month(), rawtime.day());
+  jd = int(jd - 2244116.75); // start at Jan 1 1972
+  jd /= 29.53; // divide by the moon cycle
+  b = jd;
+  jd -= b; // leaves the fractional part of jd
+  ed = jd * 29.53; // days elapsed this month
+  nfm = String((int(29.53 - ed))); // days to next full moon
+  b = jd * 8 + 0.5;
+  b = b & 7;
+  return b;
+}
+
+double julianDate(int y, int m, int d) {
+  int mm, yy;
+  double k1, k2, k3;
+  double j;
+  yy = y - int((12 - m) / 10);
+  mm = m + 9;
+  if (mm >= 12) {
+    mm = mm - 12;
+  }
+  k1 = 365.25 * (yy + 4172);
+  k2 = int((30.6001 * mm) + 0.5);
+  k3 = int((((yy / 100) + 4) * 0.75) - 38);
+  j = k1 + k2 + d + 59;
+  j = j - k3;
+  return j;
 }
