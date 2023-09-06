@@ -1,0 +1,2 @@
+cd ${0%/*} 2>/dev/null
+python3 cert.py -s www.googleapis.com -n googleapis > certs.h
