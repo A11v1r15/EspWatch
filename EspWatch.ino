@@ -151,6 +151,7 @@ double accuracy;
 
 bool noNtp = false;
 bool whiteLed = false;
+bool otaUpgrade = false;
 
 void initializeHardware(){
   for (int i = 0; i < buttonsLen; i++) {
@@ -221,6 +222,10 @@ void initializeOTA() {
     }
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     Serial.println("Start updating " + type);
+    display.setTextSize(8);
+    display.setCursor(0,0);
+    display.print("OTA");
+    otaUpgrade = true;
   });
   ArduinoOTA.onEnd([]() {
     setRGBLed();
@@ -251,6 +256,7 @@ void initializeOTA() {
 
 void loop() {
   ArduinoOTA.handle();
+  if(otaUpgrade) return;
   timeClient.update();
   rawtime = timeClient.getEpochTime();
   if((String)getenv("TZ") == "XYZ+0")
@@ -388,7 +394,7 @@ void displayAnalogClock() {
   display.print("VI");
   display.setCursor(88, 25);
   display.print("III");
-  display.setCursor(29, 23);
+  display.setCursor(29, 25);
   display.print("IX");
   strftime(buf, sizeof(buf), "%Z", &ts);
   display.setCursor(110, 0);
@@ -425,9 +431,16 @@ void displayZenithClock() {
   int sunX = ZENITH_CENTER_X + int(ZENITH_RADIUS * cos((sunAngle - 180) * DEG_TO_RAD));
   float sunHeight = sin((sunAngle - 180) * DEG_TO_RAD);
   int sunY = ZENITH_CENTER_Y + int(ZENITH_RADIUS * sunHeight);
-  setRGBLed(kToRGB(sunHeight * 7000 + 2000), sunHeight * 255); // Correct sun range is 2000K to 6500K
-  display.setCursor(sunX, sunY);
-  display.print("*");
+  if(sunHeight <= 0){
+    setRGBLed(kToRGB(-sunHeight * 4500 + 2000), sunHeight * 255); // Sun range is 2000K to 6500K
+    display.setCursor(sunX, sunY);
+    display.print("*");
+  } else {
+    display.setFont(&MoonPhases7x7);
+    display.setCursor(100, 10);
+    display.print(moonPhase());
+    display.setFont();
+  }
   display.drawRect(0, ZENITH_CENTER_Y, SCREEN_WIDTH, 9, SH110X_BLACK);
   display.drawFastHLine(0, ZENITH_CENTER_Y, SCREEN_WIDTH, SH110X_WHITE);
   strftime(buf, sizeof(buf), "%H:%M", &ts);
@@ -450,10 +463,13 @@ void displayClock() {
   strftime(buf, sizeof(buf), "%S", &ts);
   display.setCursor(110, 38);
   display.print(buf);
-  display.setFont( &clockFont);
+  display.setFont(&clockFont);
   strftime(buf, sizeof(buf), "%H:%M", &ts);
   display.setCursor(6, 44);
   display.print(buf);
+  display.setFont(&MoonPhases7x7);
+  display.setCursor(121, -1);
+  display.print(moonPhase());
   display.setFont();
 }
 
@@ -606,16 +622,16 @@ int kToRGB(int kTemp) {
 }
 
 int moonPhase() {
+  struct tm tts = *localtime(&rawtime);
   double jd = 0;
   double ed = 0;
   int b = 0;
-  jd = julianDate(rawtime.year(), rawtime.month(), rawtime.day());
+  jd = julianDate(tts.tm_year + 1900, tts.tm_mon, tts.tm_mday);
   jd = int(jd - 2244116.75); // start at Jan 1 1972
   jd /= 29.53; // divide by the moon cycle
   b = jd;
   jd -= b; // leaves the fractional part of jd
   ed = jd * 29.53; // days elapsed this month
-  nfm = String((int(29.53 - ed))); // days to next full moon
   b = jd * 8 + 0.5;
   b = b & 7;
   return b;
