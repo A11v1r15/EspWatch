@@ -222,9 +222,13 @@ void initializeOTA() {
     }
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     Serial.println("Start updating " + type);
-    display.setTextSize(8);
+    display.clearDisplay();
+    display.setTextSize(7);
     display.setCursor(0,0);
     display.print("OTA");
+    menuPointer = M_IP;
+    displayMenu();
+    display.display();
     otaUpgrade = true;
   });
   ArduinoOTA.onEnd([]() {
@@ -315,6 +319,8 @@ void fetchWeatherData() {
     http.end();
   } else {
     Serial.println("Unable to connect to the API");
+    setRGBLed(255, 0, 0);
+    delay(500);
   }
   setRGBLed();
 }
@@ -432,7 +438,7 @@ void displayZenithClock() {
   float sunHeight = sin((sunAngle - 180) * DEG_TO_RAD);
   int sunY = ZENITH_CENTER_Y + int(ZENITH_RADIUS * sunHeight);
   if(sunHeight <= 0){
-    setRGBLed(kToRGB(-sunHeight * 4500 + 2000), sunHeight * 255); // Sun range is 2000K to 6500K
+    setRGBLed(kToRGB(-sunHeight * 4500 + 2000)); // Sun range is 2000K to 6500K
     display.setCursor(sunX, sunY);
     display.print("*");
   } else {
@@ -441,11 +447,21 @@ void displayZenithClock() {
     display.print(moonPhase());
     display.setFont();
   }
-  display.drawRect(0, ZENITH_CENTER_Y, SCREEN_WIDTH, 9, SH110X_BLACK);
-  display.drawFastHLine(0, ZENITH_CENTER_Y, SCREEN_WIDTH, SH110X_WHITE);
+  display.fillRect(0, ZENITH_CENTER_Y, SCREEN_WIDTH, 9, SH110X_BLACK);
+  display.drawFastHLine(0, ZENITH_CENTER_Y - 1, SCREEN_WIDTH, SH110X_WHITE);
   strftime(buf, sizeof(buf), "%H:%M", &ts);
   display.setCursor(51, 28);
   display.print(buf);
+  display.setCursor(45, 36);
+  if(rawtime<sunrise){
+    ts = *localtime(&sunrise);
+    strftime(buf, sizeof(buf), "<%H:%M", &ts);
+    display.print(buf);
+  } else if(rawtime<sunset){
+    ts = *localtime(&sunset);
+    strftime(buf, sizeof(buf), " %H:%M>", &ts);
+    display.print(buf);
+  }
 }
 
 void displayClock() {
