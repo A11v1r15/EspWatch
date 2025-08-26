@@ -16,8 +16,11 @@
 #include "secrets.h"
 #include "certs.h"
 
-#define setTimezone(tz) setenv("TZ", tz, 1); tzset()
+#define setTimezone(tz) \
+  setenv("TZ", tz, 1); \
+  tzset()
 GFXfont clockFont = RussoOne18pt4b;
+GFXfont astralFont = MoonPhases7x7;
 
 //-------------------- PINS
 #define BTN_LUP     0
@@ -52,7 +55,7 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_RGB, NEO_GRB + NEO_KHZ800);
 #define i2c_Address 0x3c
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define OLED_RESET    -1
+#define OLED_RESET -1
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 const char* ssid = STASSID;
@@ -66,7 +69,7 @@ void handleLDownClock();
 void handleDownClock();
 void handleUpClock();
 void handleCenterClock();
-void( *buttonFunctions[5])() {
+void (*buttonFunctions[5])(){
   handleLUpClock,
   handleLDownClock,
   handleDownClock,
@@ -86,7 +89,7 @@ String menu[] = {
 #define M_IP    3
 const int menuLen = sizeof(menu) / sizeof(menu[0]);
 int menuPointer;
-const char *timezones[] = {
+const char* timezones[] = {
   "BRT+3",
   "EST+4",
   "PST+7",
@@ -95,7 +98,7 @@ const char *timezones[] = {
   "JST-9",
   "XYZ+0"
 };
-const char *timezoneNames[] = {
+const char* timezoneNames[] = {
   "Brasilia Time",
   "Eastern Standard Time",
   "Pacific Standard Time",
@@ -107,7 +110,7 @@ const char *timezoneNames[] = {
 const int tzLen = sizeof timezones / sizeof timezones[0];
 int tzPointer;
 
-void( *faces[3])() {
+void (*faces[3])(){
   displayClock,
   displayAnalogClock,
   displayZenithClock
@@ -153,7 +156,7 @@ bool noNtp = false;
 bool whiteLed = false;
 bool otaUpgrade = false;
 
-void initializeHardware(){
+void initializeHardware() {
   for (int i = 0; i < buttonsLen; i++) {
     pinMode(buttons[i], INPUT_PULLUP);
   }
@@ -177,7 +180,7 @@ void setup() {
   initializeOTA();
 
   // Initialize the display
-  display.begin(i2c_Address, true); // Address 0x3C default
+  display.begin(i2c_Address, true);  // Address 0x3C default
   display.display();
   display.setTextColor(SH110X_WHITE);
 
@@ -187,7 +190,7 @@ void setup() {
   timeClient.forceUpdate();
   fetchLocationData();
   fetchWeatherData();
-  if (!timeClient.isTimeSet()){
+  if (!timeClient.isTimeSet()) {
     timeClient.setTimeOffset(lastWeather);
     noNtp = true;
   }
@@ -196,7 +199,7 @@ void setup() {
   setRGBLed();
 }
 
-void connectToWiFi(){
+void connectToWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.hostname("ESP-A11V1R15");
   WiFi.begin(ssid, password);
@@ -217,17 +220,17 @@ void initializeOTA() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
       type = "sketch";
-    } else { // U_FS
+    } else {  // U_FS
       type = "filesystem";
     }
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     Serial.println("Start updating " + type);
     display.clearDisplay();
-    display.setTextSize(7);
-    display.setCursor(0,0);
-    display.print("OTA");
     menuPointer = M_IP;
     displayMenu();
+    display.setTextSize(7);
+    display.setCursor(0, 0);
+    display.print("OTA");
     display.display();
     otaUpgrade = true;
   });
@@ -260,13 +263,13 @@ void initializeOTA() {
 
 void loop() {
   ArduinoOTA.handle();
-  if(otaUpgrade) return;
+  if (otaUpgrade) return;
   timeClient.update();
   rawtime = timeClient.getEpochTime();
-  if((String)getenv("TZ") == "XYZ+0")
+  if ((String)getenv("TZ") == "XYZ+0")
     rawtime += wTimezone;
   ts = *localtime(&rawtime);
-  if (noNtp && timeClient.isTimeSet()){
+  if (noNtp && timeClient.isTimeSet()) {
     timeClient.setTimeOffset(0);
     noNtp = false;
   }
@@ -287,8 +290,7 @@ void loop() {
 void fetchWeatherData() {
   setRGBLed(0, 0, 255);
   // Make API request
-  String url = "http://" + (String)weatherApiHost + "/data/2.5/weather?q=" +
-               (String)weatherApiCity + "," + (String)weatherApiCountry + "&units=metric&appid=" + (String)weatherApiKey;
+  String url = "http://" + (String)weatherApiHost + "/data/2.5/weather?q=" + (String)weatherApiCity + "," + (String)weatherApiCountry + "&units=metric&appid=" + (String)weatherApiKey;
   Serial.print("Fetching weather data from: ");
   Serial.println(url);
   if (http.begin(client, url)) {
@@ -343,7 +345,7 @@ void fetchLocationData() {
       Serial.println(locationPayload);
       DynamicJsonDocument locationDoc(1024);
       deserializeJson(locationDoc, locationPayload);
-      
+
       // Extract latitude and longitude from the Geolocation API response
       double lat = locationDoc["location"]["lat"];
       double lng = locationDoc["location"]["lng"];
@@ -351,7 +353,7 @@ void fetchLocationData() {
       latitude = lat;
       longitude = lng;
       accuracy = acc;
-      
+
       // You can store or use these coordinates as needed
     } else {
       Serial.print("Unable to retrieve location data from Google Geolocation API, ");
@@ -362,14 +364,14 @@ void fetchLocationData() {
     http.end();
   } else {
     Serial.println("Unable to connect to the Google Geolocation API");
-      setRGBLed(255, 0, 0);
-      delay(500);
+    setRGBLed(255, 0, 0);
+    delay(500);
   }
   setRGBLed();
 }
 
 void displayWeather() {
-  if((String)getenv("TZ") != "XYZ+0")
+  if ((String)getenv("TZ") != "XYZ+0")
     ts = *localtime(&lastWeather);
   else
     ts = *localtime(&lastWeatherTz);
@@ -387,7 +389,7 @@ void displayWeather() {
 
 #define ANALOG_CENTER_X 64
 #define ANALOG_CENTER_Y 28
-#define ANALOG_RADIUS   25
+#define ANALOG_RADIUS 25
 
 void displayAnalogClock() {
   int secondsAngle = map(ts.tm_sec, 0, 59, 0, 360);
@@ -404,10 +406,10 @@ void displayAnalogClock() {
   display.print("IX");
   strftime(buf, sizeof(buf), "%Z", &ts);
   display.setCursor(110, 0);
-  if((String)getenv("TZ") != "XYZ+0")
+  if ((String)getenv("TZ") != "XYZ+0")
     display.println(buf);
 
-  for(int h = 0; h <= 11; h++){
+  for (int h = 0; h <= 11; h++) {
     int hX = ANALOG_CENTER_X + int(ANALOG_RADIUS * 0.9 * cos((30 * h) * DEG_TO_RAD));
     int hY = ANALOG_CENTER_Y + int(ANALOG_RADIUS * 0.9 * sin((30 * h) * DEG_TO_RAD));
     if ((30 * h) % 90 != 0)
@@ -429,7 +431,7 @@ void displayAnalogClock() {
 
 #define ZENITH_CENTER_X 62
 #define ZENITH_CENTER_Y 55
-#define ZENITH_RADIUS   55
+#define ZENITH_RADIUS 55
 
 void displayZenithClock() {
   int sunAngle = map(rawtime, sunrise, sunset, 0, 180);
@@ -437,27 +439,27 @@ void displayZenithClock() {
   int sunX = ZENITH_CENTER_X + int(ZENITH_RADIUS * cos((sunAngle - 180) * DEG_TO_RAD));
   float sunHeight = sin((sunAngle - 180) * DEG_TO_RAD);
   int sunY = ZENITH_CENTER_Y + int(ZENITH_RADIUS * sunHeight);
-  if(sunHeight <= 0){
-    setRGBLed(kToRGB(-sunHeight * 4500 + 2000)); // Sun range is 2000K to 6500K
+  display.setFont(&astralFont);
+  if (sunHeight <= 0) {
+    setRGBLed(kToRGB(-sunHeight * 4500 + 2000));  // Sun range is 2000K to 6500K
     display.setCursor(sunX, sunY);
-    display.print("*");
+    display.print("/");
   } else {
-    display.setFont(&MoonPhases7x7);
     display.setCursor(100, 10);
     display.print(moonPhase());
-    display.setFont();
   }
+  display.setFont();
   display.fillRect(0, ZENITH_CENTER_Y, SCREEN_WIDTH, 9, SH110X_BLACK);
   display.drawFastHLine(0, ZENITH_CENTER_Y - 1, SCREEN_WIDTH, SH110X_WHITE);
   strftime(buf, sizeof(buf), "%H:%M", &ts);
   display.setCursor(51, 28);
   display.print(buf);
   display.setCursor(45, 36);
-  if(rawtime<sunrise){
+  if (rawtime < sunrise) {
     ts = *localtime(&sunrise);
     strftime(buf, sizeof(buf), "<%H:%M", &ts);
     display.print(buf);
-  } else if(rawtime<sunset){
+  } else if (rawtime < sunset) {
     ts = *localtime(&sunset);
     strftime(buf, sizeof(buf), " %H:%M>", &ts);
     display.print(buf);
@@ -470,9 +472,9 @@ void displayClock() {
   display.println(buf);
   strftime(buf, sizeof(buf), "%Z", &ts);
   display.setCursor(110, 17);
-  if((String)getenv("TZ") != "XYZ+0")
+  if ((String)getenv("TZ") != "XYZ+0")
     display.println(buf);
-  if (noNtp){
+  if (noNtp) {
     display.setCursor(110, 25);
     display.println("*");
   }
@@ -483,7 +485,7 @@ void displayClock() {
   strftime(buf, sizeof(buf), "%H:%M", &ts);
   display.setCursor(6, 44);
   display.print(buf);
-  display.setFont(&MoonPhases7x7);
+  display.setFont(&astralFont);
   display.setCursor(121, -1);
   display.print(moonPhase());
   display.setFont();
@@ -521,6 +523,7 @@ void setRGBLed() {
   strip.show();
 }
 
+int lastSecondWhiteLED = 0;
 void handleLUpClock() {
   digitalWrite(LED_WHITE, whiteLed ? HIGH : LOW);
   whiteLed = !whiteLed;
